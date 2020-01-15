@@ -12,6 +12,7 @@ from api import commands
 from api import admin, user, stories, crawler, util
 from api.config import config
 from api.extensions import db, mail, pagedown, login_manager, migrate, jwt
+from .helpers import create_admin
 
 
 def create_app(config_name):
@@ -28,8 +29,9 @@ def create_app(config_name):
     register_commands(app)
 
     @app.before_first_request
-    def create_tables():
+    def create_admin_and_tables():
         db.create_all()
+        create_admin()
 
     return app
 

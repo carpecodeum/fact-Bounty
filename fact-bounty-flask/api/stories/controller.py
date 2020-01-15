@@ -4,40 +4,46 @@ from flask import make_response, request, jsonify, current_app
 from elasticsearch.helpers import scan
 from .model import Vote, Comment
 from flasgger import swag_from
+from ..user import model
 
 
 class AllStories(MethodView):
     """
-    Retrieve stories
+    Retrieve stories only for admin
 
     :return: JSON object with all stories and HTTP status code 200.
     """
-    @swag_from('../../docs/stories/get_all.yml')
+
+    @swag_from("../../docs/stories/get_all.yml")
     def get(self):
+        role = request.args.get("role")
+        if role == "admin":
+            es_index = current_app.config["ES_INDEX"]
+            es = current_app.elasticsearch
 
-        es_index = current_app.config["ES_INDEX"]
-        es = current_app.elasticsearch
+            doc = {
+                "sort": [{"date": {"order": "desc"}}],
+                "query": {"match_all": {}},
+            }
+            stories = {}
+            try:
+                for story in scan(es, doc, index=es_index, doc_type="story"):
+                    PID = story["_id"]
+                    source = story["_source"]
+                    stories[PID] = source
+            except Exception as e:
+                # An error occured, so return a string message containing error
+                response = {"message": str(e)}
+                return make_response(jsonify(response)), 500
 
-        doc = {
-            "sort": [{"date": {"order": "desc"}}],
-            "query": {"match_all": {}},
-        }
-        stories = {}
-        try:
-            for story in scan(es, doc, index=es_index, doc_type="story"):
-                PID = story["_id"]
-                source = story["_source"]
-                stories[PID] = source
-        except Exception as e:
-            # An error occured, so return a string message containing error
-            response = {"message": str(e)}
-            return make_response(jsonify(response)), 500
-
-        response = {
-            "message": "Stories successfully fetched",
-            "stories": stories,
-        }
-        return make_response(jsonify(response)), 200
+            response = {
+                "message": "Stories successfully fetched",
+                "stories": stories,
+            }
+            return make_response(jsonify(response)), 200
+        else:
+            response = {"message": "only for admins"}
+            return make_response(jsonify(response)), 400
 
 
 class GetRange(MethodView):
@@ -46,7 +52,8 @@ class GetRange(MethodView):
 
     :return: JSON object with range of stories and HTTP status code 200.
     """
-    @swag_from('../../docs/stories/get_range.yml')
+
+    @swag_from("../../docs/stories/get_range.yml")
     def get(self, page):
         es_index = current_app.config["ES_INDEX"]
         es = current_app.elasticsearch
@@ -267,6 +274,7 @@ class SearchStory(MethodView):
         }
         return make_response(jsonify(response)), 200
 
+
 class LoadUserComments(MethodView):
     # retrieve all comments by a user
     @jwt_required
@@ -278,7 +286,12 @@ class LoadUserComments(MethodView):
         try:
             commented_q = Comment.fetch_user_comments(user_id)
             for commented in commented_q:
-                commented_posts.append({"story_id": commented.story_id, "content": commented.content})
+                commented_posts.append(
+                    {
+                        "story_id": commented.story_id,
+                        "content": commented.content,
+                    }
+                )
         except Exception:
             response = {"message": "Unable to retrieve commented posts."}
             return make_response(jsonify(response)), 500
@@ -288,6 +301,7 @@ class LoadUserComments(MethodView):
             "user_comments": commented_posts,
         }
         return make_response(jsonify(response)), 200
+
 
 class ChangeComment(MethodView):
     """
@@ -312,7 +326,7 @@ class ChangeComment(MethodView):
 
         # fetch user's comment of story
         try:
-            comment = Comment.objects.get(pk = comment_id)
+            comment = Comment.objects.get(pk=comment_id)
         except Exception:
             response = {"message": "Something went wrong!"}
             return make_response(jsonify(response)), 500
@@ -328,7 +342,9 @@ class ChangeComment(MethodView):
         # else create a new comment
         else:
             try:
-                comment = Comment(story_id=_id, user_id=user_id, content=comment_content)
+                comment = Comment(
+                    story_id=_id, user_id=user_id, content=comment_content
+                )
             except Exception:
                 response = {"message": "Something went wrong!"}
                 return make_response(jsonify(response)), 500
@@ -370,8 +386,6 @@ class DeleteComment(MethodView):
         return make_response(jsonify(response)), code
 
 
-
-
 storyController = {
     "allstories": AllStories.as_view("all_stories"),
     "getrange": GetRange.as_view("get_range"),
@@ -381,5 +395,5 @@ storyController = {
     "getstory": GetById.as_view("get_story"),
     "loadusercomments": LoadUserComments.as_view("load_user_comments"),
     "changecomment": ChangeComment.as_view("change_comment"),
-    "deletecomment": DeleteComment.as_view("delete_comment")
+    "deletecomment": DeleteComment.as_view("delete_comment"),
 }
