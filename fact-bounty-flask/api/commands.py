@@ -37,7 +37,8 @@ def test(coverage):
     result = unittest.TextTestRunner(verbosity=2).run(tests)
     if result.wasSuccessful():
         return 0
-    return 1
+    else:
+        return 1
 
     if COV:
         COV.stop()
