@@ -48,7 +48,7 @@ def test(coverage):
         COV.erase()
 
     if result.wasSuccessful():
-        print(f"here was true")
+        print("here was true")
         return 1
     else:
         return 0
