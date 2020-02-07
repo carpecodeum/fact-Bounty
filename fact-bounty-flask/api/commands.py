@@ -48,10 +48,9 @@ def test(coverage):
         COV.erase()
 
     if result.wasSuccessful():
-        print("here was true")
-        return 1
+        return True
     else:
-        return 0
+        return False
 
 
 @click.command()
