@@ -48,9 +48,9 @@ def test(coverage):
         COV.erase()
 
     if result.wasSuccessful():
-        return True
+        return 0
     else:
-        return False
+        sys.exit("tests have failed")
 
 
 @click.command()
